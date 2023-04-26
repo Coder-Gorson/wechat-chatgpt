@@ -244,17 +244,18 @@ export class ChatGPTBot {
       return;
     }
     if (messageType == MessageType.Audio){
-      // 保存语音文件
-      const fileBox = await message.toFileBox();
-      let fileName = "./public/" + fileBox.name;
-      await fileBox.toFile(fileName, true).catch((e) => {
-        console.log("保存语音失败",e);
-        return;
-      });
-      // Whisper
-      whisper("",fileName).then((text) => {
-        message.say(text);
-      })
+      // // 保存语音文件
+      // const fileBox = await message.toFileBox();
+      // let fileName = "./public/" + fileBox.name;
+      // await fileBox.toFile(fileName, true).catch((e) => {
+      //   console.log("保存语音失败",e);
+      //   return;
+      // });
+      // // Whisper
+      // whisper("",fileName).then((text) => {
+      //   message.say(text);
+      // })
+      console.log(`语音文件不进行识别`)
       return;
     }
     if (rawText.startsWith("/cmd ")){
@@ -269,17 +270,17 @@ export class ChatGPTBot {
     }
     // 使用DallE生成图片
     if (rawText.startsWith("/img")){
-      console.log(`🤖 Image: ${rawText}`)
-      const imgContent = rawText.slice(4)
-      if (privateChat) {
-        let url = await dalle(talker.name(), imgContent) as string;
-        const fileBox = FileBox.fromUrl(url)
-        message.say(fileBox)
-      }else{
-        let url = await dalle(await room.topic(), imgContent) as string;
-        const fileBox = FileBox.fromUrl(url)
-        message.say(fileBox)
-      }
+      console.log(`🤖 Image: ${rawText} 不进行识别`)
+      // const imgContent = rawText.slice(4)
+      // if (privateChat) {
+      //   let url = await dalle(talker.name(), imgContent) as string;
+      //   const fileBox = FileBox.fromUrl(url)
+      //   message.say(fileBox)
+      // }else{
+      //   let url = await dalle(await room.topic(), imgContent) as string;
+      //   const fileBox = FileBox.fromUrl(url)
+      //   message.say(fileBox)
+      // }
       return;
     }
     if (this.triggerGPTMessage(rawText, privateChat)) {
