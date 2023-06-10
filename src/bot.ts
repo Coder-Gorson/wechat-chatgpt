@@ -1,10 +1,13 @@
 import { config } from "./config.js";
 import {ContactImpl, ContactInterface, RoomImpl, RoomInterface} from "wechaty/impls";
-import { Message } from "wechaty";
+import { Message, log } from "wechaty";
 import {FileBox} from "file-box";
 import {chatgpt, dalle, whisper} from "./openai.js";
 import DBUtils from "./data.js";
 import { regexpEncode } from "./utils.js";
+import { getPriceInfo } from "./req.js"
+import axios from "axios";
+
 enum MessageType {
   Unknown = 0,
   Attachment = 1, // Attach(6),
@@ -110,6 +113,7 @@ export class ChatGPTBot {
       await command.exec(contact, args.join(" "));
     }
   }
+
   // remove more times conversation and mention
   cleanMessage(rawText: string, privateChat: boolean = false): string {
     let text = rawText;
@@ -160,6 +164,7 @@ export class ChatGPTBot {
       message = message.slice(SINGLE_MESSAGE_MAX_SIZE);
     }
     messages.push(message);
+    console.log(messages)
     for (const msg of messages) {
       await talker.say(msg);
     }
@@ -215,7 +220,30 @@ export class ChatGPTBot {
   }
 
   async onPrivateMessage(talker: ContactInterface, text: string) {
-    const gptMessage = await this.getGPTMessage(talker.name(),text);
+    const remoteUrl = "http://43.143.166.92:8443/api/mhxy/fuzzyQueryPriceByName";
+    const localUrl = "http://localhost:8443/api/mhxy/fuzzyQueryPriceByName";
+    const config  = {
+        headers: {
+            'content-type': 'application/json;charset=utf-8'
+        }
+    }
+    // const gptMessage = await this.getGPTMessage(talker.name(),text);
+    const gptMessage = await axios.post(
+      remoteUrl, 
+      JSON.stringify({regionName: text}), 
+      config
+    )
+    .then((res) => {
+      let rtnValue = ""
+      res.data.data.forEach((element: { serverName: string; regionName: string; price: string; }) => {
+          rtnValue += element.serverName + "-" + element.regionName + "单价: "  + element.price + "(元/万两) \n"
+      });
+      console.log(rtnValue)
+      return rtnValue;
+    })
+    .catch((res) => {
+      return "暂无数据,请稍后再试...";
+    });
     await this.trySay(talker, gptMessage);
   }
 
@@ -224,10 +252,34 @@ export class ChatGPTBot {
     text: string,
     room: RoomInterface
   ) {
-    const gptMessage = await this.getGPTMessage(await room.topic(),text);
+    const remoteUrl = "http://43.143.166.92:8443/api/mhxy/fuzzyQueryPriceByName";
+    const localUrl = "http://localhost:8443/api/mhxy/fuzzyQueryPriceByName";
+    const config  = {
+        headers: {
+            'content-type': 'application/json;charset=utf-8'
+        }
+    }
+    // const gptMessage = await this.getGPTMessage(await room.topic(),text);
+    const gptMessage = await axios.post(
+      remoteUrl, 
+      JSON.stringify({regionName: text}), 
+      config
+    )
+    .then((res) => {
+      let rtnValue = ""
+      res.data.data.forEach((element: { serverName: string; regionName: string; price: string; }) => {
+          rtnValue += element.serverName + "-" + element.regionName + "单价: "  + element.price + "(元/万两) \n"
+      });
+      console.log(rtnValue)
+      return rtnValue;
+    })
+    .catch((res) => {
+      return "暂无数据,请稍后再试...";
+    });
     const result = `@${talker.name()} ${text}\n\n------\n ${gptMessage}`;
     await this.trySay(room, result);
   }
+
   async onMessage(message: Message) {
     const talker = message.talker();
     const rawText = message.text();
@@ -283,8 +335,13 @@ export class ChatGPTBot {
       // }
       return;
     }
-    if (this.triggerGPTMessage(rawText, privateChat)) {
-      const text = this.cleanMessage(rawText, privateChat);
+
+    if (rawText.endsWith("金价") && rawText.startsWith("@" + this.botName)) {
+      const sliceText = rawText.slice(0, -2).replace("@" + this.botName, "").replace(" ","")
+      const text = this.cleanMessage(sliceText, privateChat);
+      // console.log("rawText:" + rawText)
+      // console.log("rawText.endsWith(金价) is " + rawText.endsWith("金价"))
+      // console.log("rawText.startsWith(@ + " + this.botName + ")  is " + rawText.startsWith("@" + this.botName) )
       if (privateChat) {
         return await this.onPrivateMessage(talker, text);
       } else{
@@ -296,6 +353,6 @@ export class ChatGPTBot {
       }
     } else {
       return;
-    }
+    } 
   }
 }
